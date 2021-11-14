@@ -8,5 +8,7 @@ add_executable(pipette
         include/raylib/raylib.h
         include/raylib/raygui.h
         include/kissnet/kissnet.hpp
+        gemtxt.h
+        util.h
         )
 target_link_libraries(pipette PRIVATE raylib)

@@ -5,8 +5,6 @@
  -------------------
  (C) Luminoso 2021/All Rights Reserved
  * */
-
-
 #include <iostream>
 #include "include/kissnet/kissnet.hpp"
 #undef DrawText
@@ -16,120 +14,27 @@
 #undef ShowCursor
 #undef Rectangle
 #include "include/raylib/raylib.h"
+#include "gemtxt.h"
 #include <vector>
 #include <thread>
+#include <chrono>
+
+namespace kn = kissnet;
+namespace gm = gemtext;
+using namespace std::chrono_literals;
 
 #define VERSION "21D318-DEV"
 #define SCREEN_WIDTH (800)
 #define SCREEN_HEIGHT (450)
 #define WINDOW_TITLE "Pipette - the tiny piper browser"
-#define MAX_INPUT_CHARS     64
-
-namespace kn = kissnet;
-#include <chrono>
-using namespace std::chrono_literals;
+#define MAX_INPUT_CHARS  64
 
 
-struct GemLine{
-    std::string content;
-    int rendertype; //0 = plain, 1 = Heading, 2 = Semiheading, 3 = SemiSemi heading, 4 = Monospace, 5 = List, 6 = Quote, 7 = Link
-    std::string metadata;
-};
-
-std::vector<std::string> split (std::string s, std::string delimiter) {
-    size_t pos_start = 0, pos_end, delim_len = delimiter.length();
-    std::string token;
-    std::vector<std::string> res;
-    while ((pos_end = s.find (delimiter, pos_start)) != std::string::npos) {
-        token = s.substr (pos_start, pos_end - pos_start);
-        pos_start = pos_end + delim_len;
-        res.push_back (token);
-    }
-    res.push_back (s.substr (pos_start));
-    return res;
-}
-
-std::string join(const std::vector<std::string>& v, char c) {
-    std::string s = "";
-    s.clear();
-    for (auto p = v.begin();
-         p != v.end(); ++p) {
-        s += *p;
-        if (p != v.end() - 1)
-            s += c;
-    }
-    return s;
-}
-
-std::vector<GemLine> gemParse(std::string input,bool ignoreformatdirectives){
-    std::vector<std::string> lines = split(input,std::string("\n"));
-    std::vector<GemLine> gemlines;
-    bool monomode = false;
-    for (std::string line:lines){
-        if (line.find("\r") != std::string::npos) {
-            line = line.replace(line.find("\r"), sizeof("\r") - 1, "");
-        }
-        if (ignoreformatdirectives){
-            gemlines.push_back(GemLine{
-                    line, 0,""
-            });
-            continue;
-        }
-        if (line.starts_with("```")){
-            monomode = !monomode;
-            continue;
-        }
-        if (monomode){
-            gemlines.push_back(GemLine{
-               line, 4,""
-            });
-            continue;
-        }
-        if (line.starts_with("# ")){
-            gemlines.push_back(GemLine{
-                    line.replace(line.find("# "), sizeof("# ") - 1, ""), 1,""
-            });
-        } else if (line.starts_with("## ")){
-            gemlines.push_back(GemLine{
-                    line.replace(line.find("## "), sizeof("## ") - 1, ""), 2,""
-            });
-        } else if (line.starts_with("### ")){
-            gemlines.push_back(GemLine{
-                    line.replace(line.find("### "), sizeof("### ") - 1, ""), 3,""
-            });
-        } else if (line.starts_with("> ")){
-            gemlines.push_back(GemLine{
-                    line.replace(line.find("> "), sizeof("> ") - 1, ""), 6,""
-            });
-        } else if (line.starts_with("=> ")){
-            line = line.replace(line.find("=> "), sizeof("=> ") - 1, "");
-            std::vector<std::string> parts = split(line," ");
-            if (parts.size() <= 1){
-                gemlines.push_back(GemLine{
-                        parts[0], 7, parts[0]
-                });
-            } else {
-                std::string target = parts[0];
-                parts.erase(parts.begin());
-                std::string collected = join(parts, ' ');
-                gemlines.push_back(GemLine{
-                        collected, 7, target
-                });
-            }
-        } else {
-            gemlines.push_back(GemLine{
-                    line, 0,""
-            });
-        }
-    }
-    return gemlines;
-}
-
-void browse(std::vector<GemLine> *result,std::string url,int *status,int *contentstatus){
+void browse(std::vector<gm::GemLine> *result,std::string url,int *status,int *contentstatus){
     std::cout << "Navigating to url " << url << "\n";
     /* set up key strings */
 
-    std::vector<std::string> parts = split(url,"/");
+    std::vector<std::string> parts = util::split(url,"/");
     std::string host = "";
     if (parts[0].find(":") != std::string::npos){
         host = parts[0];
@@ -139,7 +44,7 @@ void browse(std::vector<GemLine> *result,std::string url,int *status,int *conten
     //clean out the first part
     parts.erase(parts.begin());
     //pull together the URI
-    std::string uri = "/"+join(parts, '/');
+    std::string uri = "/"+util::join(parts, '/');
 
     /* socket time! */
 
@@ -186,16 +91,16 @@ void browse(std::vector<GemLine> *result,std::string url,int *status,int *conten
     switch (contenttype){
         case 0x0:
             result->clear();
-            *result = gemParse(res,true);
+            *result = gm::parse(res,true);
             break;
         case 0x01:
             result->clear();
-            *result = gemParse(res,false);
+            *result = gm::parse(res,false);
             break;
         case 0x22:
             result->clear();
             result->push_back(
-                    GemLine{
+                    gm::GemLine{
                         "0x22 Resource Not Found",1,""
                     }
                     );
@@ -205,7 +110,7 @@ void browse(std::vector<GemLine> *result,std::string url,int *status,int *conten
             result->clear();
 
             result->push_back(
-                    GemLine{
+                    gm::GemLine{
                             "Unknown Content Type "+std::to_string(contenttype),1,""
                     }
             );
@@ -233,7 +138,7 @@ int main(void) {
 
 
    // int rendermode = 1;
-    std::vector<GemLine> gemlines(1,GemLine{"waiting for browse activity\n\n\n\n--------------------\nPipette is (C) Luminoso 2021 All Rights Reserved\nPipette uses the kissnet library, which is under the MIT license\n (https://github.com/Ybalrid/kissnet)\nPipette uses the Raylib library, which is under the Zlib license\n (https://github.com/raysan5/raylib)\nPipette uses Cascadia Code, which is under the OFL1.1\n (https://github.com/microsoft/cascadia-code)",0,""});
+    std::vector<gm::GemLine> gemlines(1,gm::GemLine{"waiting for browse activity\n\n\n\n--------------------\nPipette is (C) Luminoso 2021 All Rights Reserved\nPipette uses the kissnet library, which is under the MIT license\n (https://github.com/Ybalrid/kissnet)\nPipette uses the Raylib library, which is under the Zlib license\n (https://github.com/raysan5/raylib)\nPipette uses Cascadia Code, which is under the OFL1.1\n (https://github.com/microsoft/cascadia-code)",0,""});
 
     SetTargetFPS(30);
 
@@ -307,7 +212,7 @@ int main(void) {
         int y = 35;
         //hacky way to implement scrolling
         y -= scrollbarOffset*fontsize;
-        for (GemLine line:gemlines){
+        for (gm::GemLine line:gemlines){
             bool render = true;
             if (y<25){
                 render = false;
@@ -374,7 +279,7 @@ int main(void) {
                             std::string clean = line.metadata.replace(line.metadata.find("piper://"),
                                                                       sizeof("piper://") - 1, "");
                             std::cout << clean << std::endl;
-                            strcpy(target_url, line.metadata.c_str());
+                            strcpy(target_url, clean.c_str());
                             status = 1;
                             scrollbarOffset = 0;
                             std::thread thread(browse, &gemlines, clean, &status, &contentstatus);
