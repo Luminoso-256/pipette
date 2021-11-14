@@ -22,16 +22,17 @@
 #include <fstream>
 #include <chrono>
 #include <filesystem>
+#include "portable_endian.h"
+
 namespace kn = kissnet;
 namespace gm = gemtext;
 using namespace std::chrono_literals;
 
-#define VERSION "21D318-DEV"
+#define VERSION "21D318B-DEV"
 #define SCREEN_WIDTH (800)
 #define SCREEN_HEIGHT (450)
 #define WINDOW_TITLE "Pipette - the tiny piper browser"
 #define MAX_INPUT_CHARS  64
-
 
 
 void browse(std::vector<gm::GemLine> *result, std::string url, int *status, int *contentstatus) {
@@ -53,104 +54,148 @@ void browse(std::vector<gm::GemLine> *result, std::string url, int *status, int 
     /* socket time! */
 
     //== Send
-
-    kn::tcp_socket tcpsocket((kn::endpoint(host)));
-
-    kn::socket_status sstat = tcpsocket.connect();
-
-    if (!tcpsocket.is_valid()) {
-        *status = 3;
-        return;
-    }
-
-    std::vector<char> request;
-    short len = (short) uri.length();
-    request.push_back(char(len & 0xff));
-    request.push_back(char((len >> 8) & 0xff));
-    std::vector<char> uribytes(uri.begin(), uri.end());
-    request.insert(request.end(), uribytes.begin(), uribytes.end());
-    std::vector<std::byte> brequest;
-    for (char c:request) {
-        brequest.push_back(std::byte(c));
-    }
-    //abuse the C++ spec requiring vecs being stored contigously to convert
-    //god i hate all the casts in this mess.
-    tcpsocket.send(&brequest[0], brequest.size());
-    while (tcpsocket.bytes_available() < 9) {}
-    std::cout << "bytes available to read : " << tcpsocket.bytes_available() << '\n';
-    //== Recieve
-    kn::buffer<4096> static_buffer;
-    const auto[data_size, status_code] = tcpsocket.recv(static_buffer);
-    if (data_size < static_buffer.size())
-        static_buffer[data_size] = std::byte{'\0'};
-    *status = 2;
-
-    int contenttype = (int) static_buffer[0];
-    *contentstatus = contenttype;
-    std::string res = "";
-    for (int i = 9; i < data_size; i++) {
-        res += (char) static_buffer[i];
-    }
-    bool error = false;
-    switch (contenttype) {
-        case 0x0:
-            result->clear();
-            *result = gm::parse(res, true);
-            break;
-        case 0x01:
-            result->clear();
-            *result = gm::parse(res, false);
-            break;
-        case 0x10: {
-            result->clear();
-            result->push_back(
-                    gm::GemLine{
-                            "Saving " + parts[parts.size() - 1] + " to ./downloads/" + parts[parts.size() - 1], 1, ""
-                    }
-            );
-            result->push_back(
-                    gm::GemLine{
-                            std::to_string(res.size()) + " bytes.", 6, ""
-                    }
-            );
-            *status = 4;
-            std::filesystem::path path{"./downloads"};
-            path /= parts[parts.size()-1];
-            std::filesystem::create_directories(path.parent_path());
-            std::ofstream file(path);
-            file << res;
-            file.close();
+    try {
+        kn::tcp_socket tcpsocket((kn::endpoint(host)));
+        if (!tcpsocket.is_valid()) {
+            std::cout << "Invalid Socket!" << std::endl;
+            *status = 3;
+            return;
         }
-            break;
-        case 0x22:
-            result->clear();
-            result->push_back(
-                    gm::GemLine{
-                            "0x22 Resource Not Found", 1, ""
-                    }
-            );
-            error = true;
-            break;
-        default:
-            result->clear();
+        kn::socket_status sstat = tcpsocket.connect();
+        std::vector<char> request;
+        short len = (short) uri.length();
+        request.push_back(char(len & 0xff));
+        request.push_back(char((len >> 8) & 0xff));
+        std::vector<char> uribytes(uri.begin(), uri.end());
+        request.insert(request.end(), uribytes.begin(), uribytes.end());
+        std::vector<std::byte> brequest;
+        for (char c:request) {
+            brequest.push_back(std::byte(c));
+        }
+        //abuse the C++ spec requiring vecs being stored contigously to convert
+        //god i hate all the casts in this mess.
+        tcpsocket.send(&brequest[0], brequest.size());
+        //== Recieve
+        bool continue_rec = true;
+        bool has_parsed_size = false;
+        std::byte static_buffer[16384];
+        int data_size = 0;
+        while(continue_rec) {
+            auto [size, valid] = tcpsocket.recv(static_buffer,sizeof(static_buffer));
+            data_size += size;
+            if (valid) {
+                //buffer magik:tm:
+                if (!has_parsed_size && data_size >= 9){
+                    //behold, cursedness!
+                    uint64_t contentlen = (uint64_t)(static_buffer[1]) |
+                            (uint64_t)(static_buffer[2]) |
+                            (uint64_t)(static_buffer[3]) |
+                            (uint64_t)(static_buffer[4]) |
+                            (uint64_t)(static_buffer[5]) |
+                            (uint64_t)(static_buffer[6]) |
+                            (uint64_t)(static_buffer[7]) |
+                            (uint64_t)(static_buffer[8]);
+                    std::cout << "content len: " << contentlen << "\n";
+                    //now do the array resizing (ugh)
+                    //kn::buffer<9+contentlen> new_buffer;
+                    has_parsed_size = true;
+                }
 
-            result->push_back(
-                    gm::GemLine{
-                            "Unknown Content Type " + std::to_string(contenttype), 1, ""
-                    }
-            );
-            break;
-    }
-    if (error) {
+                //find out if we're done
+                if (valid.value == kn::socket_status::cleanly_disconnected) {
+                    continue_rec = false;
+                }
+            } else {
+                continue_rec = false;
+            }
+        }
+        *status = 2;
+
+        int contenttype = (int) static_buffer[0];
+        *contentstatus = contenttype;
+        std::string res = "";
+        bool error = false;
+        bool warn = false;
+        for (int i = 9; i < data_size; i++) {
+            if (sizeof(static_buffer)>i) {
+                res += (char) static_buffer[i];
+            } else{
+                warn = true;
+            }
+        }
+
+        switch (contenttype) {
+            case 0x0:
+                result->clear();
+                *result = gm::parse(res, true);
+                break;
+            case 0x01:
+                result->clear();
+                *result = gm::parse(res, false);
+                break;
+            case 0x10: {
+                result->clear();
+                result->push_back(
+                        gm::GemLine{
+                                "Saving " + parts[parts.size() - 1] + " to ./downloads/" + parts[parts.size() - 1], 1,
+                                ""
+                        }
+                );
+                result->push_back(
+                        gm::GemLine{
+                                std::to_string(res.size()) + " bytes.", 6, ""
+                        }
+                );
+                *status = 4;
+                std::filesystem::path path{"./downloads"};
+                path /= parts[parts.size() - 1];
+                std::filesystem::create_directories(path.parent_path());
+                std::ofstream file(path);
+                file << res;
+                file.close();
+            }
+                break;
+            case 0x22:
+                result->clear();
+                result->push_back(
+                        gm::GemLine{
+                                "0x22 Resource Not Found", 1, ""
+                        }
+                );
+                error = true;
+                break;
+            default:
+                result->clear();
+
+                result->push_back(
+                        gm::GemLine{
+                                "Unknown Content Type " + std::to_string(contenttype), 1, ""
+                        }
+                );
+                break;
+        }
+        if (error) {
+            *status = 3;
+        } else if (warn){
+            *status = 5;
+        } else {
+            *status = 0;
+        }
+    } catch (const std::exception &e) {
         *status = 3;
-    } else {
-        *status = 0;
+        result->clear();
+        result->push_back(
+                gm::GemLine{
+                        "Error Encountered: " + std::string(e.what()), 0, ""
+                }
+        );
+        return;
     }
 }
 
 
-
 int main(void) {
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, WINDOW_TITLE);
     char target_url[MAX_INPUT_CHARS + 1] = "\0";
     int letterCount = 0;
@@ -163,11 +208,10 @@ int main(void) {
     int scrollSpeed = 4;
     Font font = LoadFontEx("font.ttf", 32, 0, 250);
 
-
     // int rendermode = 1;
     std::vector<gm::GemLine> gemlines = gm::attributionTextGen();
 
-    SetTargetFPS(30);
+    SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
         int key = GetCharPressed();
@@ -180,21 +224,18 @@ int main(void) {
             key = GetCharPressed();
         }
 
-        if (IsKeyDown(KEY_BACKSPACE) && framesCounter % 3 == 0) {
+        if (IsKeyDown(KEY_BACKSPACE) && framesCounter % 4 == 0) {
             letterCount--;
             if (letterCount < 0) letterCount = 0;
             target_url[letterCount] = '\0';
         }
-        if (IsKeyPressed(KEY_ENTER) && status == 0) {
+        if (IsKeyPressed(KEY_ENTER) && status != 1) {
             status = 1;
             scrollbarOffset = 0;
             std::thread thread(browse, &gemlines, std::string(target_url), &status, &contentstatus);
             thread.detach();
         }
         scrollbarOffset -= (GetMouseWheelMove() * scrollSpeed);
-        if (scrollbarOffset > SCREEN_HEIGHT) {
-            scrollbarOffset = SCREEN_HEIGHT;
-        }
         if (scrollbarOffset < 0) {
             scrollbarOffset = 0;
         }
@@ -222,22 +263,26 @@ int main(void) {
         DrawTextEx(font, target_url, Vector2{100, 5}, 20, 2, BLUE);
         switch (status) {
             case 0:
-                DrawTextEx(font, "idle", Vector2{SCREEN_WIDTH - 50, 5}, 20, 2, BLACK);
+                DrawTextEx(font, "idle", Vector2{(float)GetScreenWidth() - 50, 5}, 20, 2, BLACK);
                 break;
             case 1:
-                DrawTextEx(font, "load", Vector2{SCREEN_WIDTH - 50, 5}, 20, 2, BLACK);
+                DrawTextEx(font, "load", Vector2{(float)GetScreenWidth() - 50, 5}, 20, 2, BLACK);
                 break;
             case 2:
-                DrawTextEx(font, "parse", Vector2{SCREEN_WIDTH - 70, 5}, 20, 2, BLACK);
+                DrawTextEx(font, "parse", Vector2{(float)GetScreenWidth() - 70, 5}, 20, 2, BLACK);
                 break;
             case 3:
-                DrawTextEx(font, "error", Vector2{SCREEN_WIDTH - 70, 5}, 20, 2, RED);
+                DrawTextEx(font, "error", Vector2{(float)GetScreenWidth() - 70, 5}, 20, 2, RED);
                 break;
             case 4:
-                DrawTextEx(font, "save", Vector2{SCREEN_WIDTH - 70, 5}, 20, 2, BLACK);
+                DrawTextEx(font, "save", Vector2{(float)GetScreenWidth() - 70, 5}, 20, 2, BLACK);
+                break;
+            case 5:
+                //overflow!
+                DrawTextEx(font, "ovfl!", Vector2{(float)GetScreenWidth() - 70, 5}, 20, 2,ORANGE);
                 break;
         }
-        DrawLine(0, 25, SCREEN_WIDTH, 25, GRAY);
+        DrawLine(0, 25, GetScreenWidth(), 25, GRAY);
         //Main
         int y = 35;
         //hacky way to implement scrolling
@@ -320,15 +365,20 @@ int main(void) {
                     y += fontsize + 5;
             }
         }
-        if (gemlines.size() * 15 > SCREEN_HEIGHT) {
+        if (gemlines.size() * 15 > GetScreenHeight()) {
             int estimatesize = gemlines.size() * 15;
-            DrawRectangle(SCREEN_WIDTH - 10, 35 + scrollbarOffset, 10, (estimatesize / SCREEN_HEIGHT) * 3, GRAY);
+            DrawRectangle(GetScreenWidth() - 10, 35 + scrollbarOffset, 10, (estimatesize / GetScreenHeight()) * 3, GRAY);
+        }
+        if (scrollbarOffset > GetScreenHeight()) {
+            int estimatesize = gemlines.size() * 15;
+            DrawRectangle(GetScreenWidth() - 10, GetScreenHeight()-((estimatesize / GetScreenHeight()) * 3), 10, (estimatesize / GetScreenHeight()) * 3, ORANGE);
+            DrawTextEx(font, "!", Vector2{(float)GetScreenWidth() - 8, (float)GetScreenHeight() - 15}, 14, 2, WHITE);
         }
         if (debug) {
             std::string dbg =
                     "[Debug] ContentType: " + std::to_string(contentstatus) + " FPS: " + std::to_string(GetFPS()) +
-                    " (of target 30) URLBuffer: " + std::to_string(letterCount) + "(of max 64) / Pipette " + VERSION;
-            DrawTextEx(font, dbg.c_str(), Vector2{3, SCREEN_HEIGHT - 20}, 12, 2, PURPLE);
+                    " (of target 60) URLBuffer: " + std::to_string(letterCount) + "(of max 64) / Pipette " + VERSION;
+            DrawTextEx(font, dbg.c_str(), Vector2{3, (float)GetScreenHeight() - 20}, 12, 2, PURPLE);
         }
         EndDrawing();
     }

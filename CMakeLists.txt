@@ -10,5 +10,6 @@ add_executable(pipette
         include/kissnet/kissnet.hpp
         gemtxt.h
         util.h
+        portable_endian.h
         )
 target_link_libraries(pipette PRIVATE raylib)

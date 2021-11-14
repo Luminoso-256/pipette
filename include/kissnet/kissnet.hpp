@@ -132,6 +132,7 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
+#include <vector>
 
 using ioctl_setting = u_long;
 using buffsize_t	= int;
@@ -412,6 +413,7 @@ namespace kissnet
     ///buffer is an array of std::byte
     template <size_t buff_size>
     using buffer = std::array<std::byte, buff_size>;
+    //using buffer = std::vector<std::byte>;
 
     ///port_t is the port
     using port_t = uint16_t;
