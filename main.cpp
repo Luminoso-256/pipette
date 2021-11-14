@@ -19,7 +19,7 @@
 #include <vector>
 #include <thread>
 
-#define VERSION "21D317-DEV"
+#define VERSION "21D318-DEV"
 #define SCREEN_WIDTH (800)
 #define SCREEN_HEIGHT (450)
 #define WINDOW_TITLE "Pipette - the tiny piper browser"
@@ -203,7 +203,12 @@ void browse(std::vector<GemLine> *result,std::string url,int *status,int *conten
             break;
         default:
             result->clear();
-            *result = gemParse(res,true);
+
+            result->push_back(
+                    GemLine{
+                            "Unknown Content Type "+std::to_string(contenttype),1,""
+                    }
+            );
             break;
     }
     if (error){
@@ -221,6 +226,7 @@ int main(void) {
     int status = 0;
     int fontsize = 15;
     int contentstatus = 0;
+    int scrollbarOffset = 0;
     bool debug = false;
     int scrollSpeed = 4;
     Font font = LoadFontEx("font.ttf",32,0,250);
@@ -232,9 +238,6 @@ int main(void) {
     SetTargetFPS(30);
 
     while (!WindowShouldClose()) {
-
-        fontsize -= (GetMouseWheelMove()*scrollSpeed);
-
         int key = GetCharPressed();
         while (key > 0) {
             if ((key >= 32) && (key <= 125) && (letterCount < MAX_INPUT_CHARS)) {
@@ -252,16 +255,29 @@ int main(void) {
         }
         if (IsKeyPressed(KEY_ENTER) && status == 0){
             status = 1;
+            scrollbarOffset = 0;
            std::thread thread(browse,&gemlines,std::string(target_url),&status,&contentstatus);
            thread.detach();
+        }
+        scrollbarOffset += (GetMouseWheelMove()*scrollSpeed);
+        if (scrollbarOffset > SCREEN_HEIGHT){
+            scrollbarOffset = SCREEN_HEIGHT;
+        }
+        if (scrollbarOffset < 0){
+            scrollbarOffset = 0;
+        }
+        if (IsKeyDown(KEY_UP)){
+            fontsize += 1;
+        }
+        if (IsKeyDown(KEY_DOWN)){
+            fontsize -= 1;
         }
 
         if (IsKeyPressed(KEY_LEFT_BRACKET)){debug = !debug;}
         if (IsKeyPressed(KEY_RIGHT_BRACKET)){
-            status += 1;
-            if (status > 3){
-                status = 0;
-            }
+            status = 1;
+            std::thread thread(browse,&gemlines,std::string("localhost/big.txt"),&status,&contentstatus);
+            thread.detach();
         }
         framesCounter++;
 
@@ -289,61 +305,89 @@ int main(void) {
         DrawLine(0,25,SCREEN_WIDTH,25,GRAY);
         //Main
         int y = 35;
+        //hacky way to implement scrolling
+        y -= scrollbarOffset*fontsize;
         for (GemLine line:gemlines){
+            bool render = true;
+            if (y<25){
+                render = false;
+            }
             switch(line.rendertype){
                 case 0:
-                    DrawTextEx(font,line.content.c_str(), Vector2{5, (float)y}, fontsize,2, BLACK);
+                    if (render) {
+                        DrawTextEx(font, line.content.c_str(), Vector2{5, (float) y}, fontsize, 2, BLACK);
+                    }
                     y += fontsize+5;
                     break;
                 case 1:
-                    DrawTextEx(font,line.content.c_str(), Vector2{5, (float)y}, fontsize+8,2, BLACK);
+                    if (render) {
+                        DrawTextEx(font, line.content.c_str(), Vector2{5, (float) y}, fontsize + 8, 2, BLACK);
+                    }
                     y += fontsize+13;
                     break;
                 case 2:
-                    DrawTextEx(font,line.content.c_str(), Vector2{5, (float)y}, fontsize+4,2, BLACK);
+                    if (render) {
+                        DrawTextEx(font, line.content.c_str(), Vector2{5, (float) y}, fontsize + 4, 2, BLACK);
+                    }
                     y += fontsize+13;
                     break;
                 case 3:
-                    DrawTextEx(font,line.content.c_str(), Vector2{5, (float)y}, fontsize+2,2, BLACK);
+                    if (render) {
+                        DrawTextEx(font, line.content.c_str(), Vector2{5, (float) y}, fontsize + 2, 2, BLACK);
+                    }
                     y += fontsize+7;
                     break;
                 case 4:
-                    DrawTextEx(font,line.content.c_str(), Vector2{5, (float)y}, fontsize,2, GRAY);
+                    if (render) {
+                        DrawTextEx(font, line.content.c_str(), Vector2{5, (float) y}, fontsize, 2, GRAY);
+                    }
                     y += fontsize+5;
                     break;
                 case 6:
-                    DrawRectangle(5,y+1,3,fontsize-2,GRAY);
-                    DrawTextEx(font,line.content.c_str(), Vector2{10, (float)y}, fontsize,2, GRAY);
+                    if (render) {
+                        DrawRectangle(5, y + 1, 3, fontsize - 2, GRAY);
+                        DrawTextEx(font, line.content.c_str(), Vector2{10, (float) y}, fontsize, 2, GRAY);
+                    }
                     y += fontsize+5;
                     break;
                 case 7:
-                    float x1 = 5;
-                    float y1 = y;
-                    float x2 = 5+(MeasureText(line.content.c_str(),fontsize)*1.5);
-                    float y2 = y+fontsize+3;
-                    Vector2 mousePos = GetMousePosition();
-                    bool touching = (mousePos.x > x1 && mousePos.x < x2 && mousePos.y > y1 && mousePos.y < y2);
-                    if (debug){
-                        if (touching) {
-                            DrawRectangle(5, y, MeasureText(line.content.c_str(), fontsize) * 1.5, fontsize + 3,
-                                          GREEN);
-                        } else {
-                            DrawRectangle(5, y, MeasureText(line.content.c_str(), fontsize) * 1.5, fontsize + 3,
-                                          YELLOW);
+                    if (render) {
+                        float x1 = 5;
+                        float y1 = y;
+                        float x2 = 5 + (MeasureText(line.content.c_str(), fontsize) * 1.5);
+                        float y2 = y + fontsize + 3;
+                        Vector2 mousePos = GetMousePosition();
+                        bool touching = (mousePos.x > x1 && mousePos.x < x2 && mousePos.y > y1 && mousePos.y < y2);
+                        if (debug) {
+                            if (touching) {
+                                DrawRectangle(5, y, MeasureText(line.content.c_str(), fontsize) * 1.5, fontsize + 3,
+                                              GREEN);
+                            } else {
+                                DrawRectangle(5, y, MeasureText(line.content.c_str(), fontsize) * 1.5, fontsize + 3,
+                                              YELLOW);
+                            }
+                            DrawTextEx(font, ("[Dbg] " + line.metadata).c_str(), Vector2{5, (float) y - 10}, 10, 2,
+                                       PURPLE);
                         }
-                        DrawTextEx(font,("[Dbg] "+line.metadata).c_str(), Vector2{5, (float)y-10}, 10,2, PURPLE);
+
+                        if (touching && IsMouseButtonDown(MouseButton::MOUSE_LEFT_BUTTON)) {
+                            std::string clean = line.metadata.replace(line.metadata.find("piper://"),
+                                                                      sizeof("piper://") - 1, "");
+                            std::cout << clean << std::endl;
+                            strcpy(target_url, line.metadata.c_str());
+                            status = 1;
+                            scrollbarOffset = 0;
+                            std::thread thread(browse, &gemlines, clean, &status, &contentstatus);
+                            thread.detach();
+                        }
+                        DrawTextEx(font, line.content.c_str(), Vector2{5, (float) y}, fontsize, 2, SKYBLUE);
                     }
-                    if (touching && IsMouseButtonDown(MouseButton::MOUSE_LEFT_BUTTON)){
-                        std::string clean = line.metadata.replace(line.metadata.find("piper://"), sizeof("piper://") - 1, "");
-                        std::cout << clean << std::endl;
-                         strcpy(target_url,line.metadata.c_str());
-                        status = 1;
-                        std::thread thread(browse,&gemlines,clean,&status,&contentstatus);
-                        thread.detach();
-                    }
-                    DrawTextEx(font,line.content.c_str(), Vector2{5, (float)y}, fontsize,2, SKYBLUE);
                     y += fontsize+5;
             }
+        }
+        if (gemlines.size()*15 > SCREEN_HEIGHT){
+            int estimatesize = gemlines.size()*15;
+            DrawRectangle(SCREEN_WIDTH-10,35+scrollbarOffset,10,(estimatesize/SCREEN_HEIGHT)*3,GRAY);
         }
         if (debug) {
             std::string dbg = "[Debug] ContentType: " + std::to_string(contentstatus) + " FPS: " + std::to_string(GetFPS()) +
