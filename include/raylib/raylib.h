@@ -1250,27 +1250,27 @@
     RLAPI void
     DrawRingLines(Vector2 center, float innerRadius, float outerRadius, float startAngle, float endAngle, int segments,
                   Color color);    // Draw ring outline
-    RLAPI void DrawRLRectangle(int posX, int posY, int width, int height,
+    RLAPI void DrawRectangle(int posX, int posY, int width, int height,
                              Color color);                        // Draw a color-filled RLRectangle
-    RLAPI void DrawRLRectangleV(Vector2 position, Vector2 size,
+    RLAPI void DrawRectangleV(Vector2 position, Vector2 size,
                               Color color);                                  // Draw a color-filled RLRectangle (Vector version)
-    RLAPI void DrawRLRectangleRec(RLRectangle rec,
+    RLAPI void DrawRectangleRec(RLRectangle rec,
                                 Color color);                                                 // Draw a color-filled RLRectangle
-    RLAPI void DrawRLRectanglePro(RLRectangle rec, Vector2 origin, float rotation,
+    RLAPI void DrawRectanglePro(RLRectangle rec, Vector2 origin, float rotation,
                                 Color color);                 // Draw a color-filled RLRectangle with pro parameters
-    RLAPI void DrawRLRectangleGradientV(int posX, int posY, int width, int height, Color color1,
+    RLAPI void DrawRectangleGradientV(int posX, int posY, int width, int height, Color color1,
                                       Color color2);// Draw a vertical-gradient-filled RLRectangle
-    RLAPI void DrawRLRectangleGradientH(int posX, int posY, int width, int height, Color color1,
+    RLAPI void DrawRectangleGradientH(int posX, int posY, int width, int height, Color color1,
                                       Color color2);// Draw a horizontal-gradient-filled RLRectangle
-    RLAPI void DrawRLRectangleGradientEx(RLRectangle rec, Color col1, Color col2, Color col3,
+    RLAPI void DrawRectangleGradientEx(RLRectangle rec, Color col1, Color col2, Color col3,
                                        Color col4);       // Draw a gradient-filled RLRectangle with custom vertex colors
-    RLAPI void DrawRLRectangleLines(int posX, int posY, int width, int height,
+    RLAPI void DrawRectangleLines(int posX, int posY, int width, int height,
                                   Color color);                   // Draw RLRectangle outline
-    RLAPI void DrawRLRectangleLinesEx(RLRectangle rec, int lineThick,
+    RLAPI void DrawRectangleLinesEx(RLRectangle rec, int lineThick,
                                     Color color);                              // Draw RLRectangle outline with extended parameters
-    RLAPI void DrawRLRectangleRounded(RLRectangle rec, float roundness, int segments,
+    RLAPI void DrawRectangleRounded(RLRectangle rec, float roundness, int segments,
                                     Color color);              // Draw RLRectangle with rounded edges
-    RLAPI void DrawRLRectangleRoundedLines(RLRectangle rec, float roundness, int segments, int lineThick,
+    RLAPI void DrawRectangleRoundedLines(RLRectangle rec, float roundness, int segments, int lineThick,
                                          Color color); // Draw RLRectangle with rounded edges outline
     RLAPI void DrawTriangle(Vector2 v1, Vector2 v2, Vector2 v3,
                             Color color);                                // Draw a color-filled triangle (vertex in counter-clockwise order!)
@@ -1422,13 +1422,13 @@
                                Color color);               // Draw circle within an image
     RLAPI void ImageDrawCircleV(Image *dst, Vector2 center, int radius,
                                 Color color);                        // Draw circle within an image (Vector version)
-    RLAPI void ImageDrawRLRectangle(Image *dst, int posX, int posY, int width, int height,
+    RLAPI void ImageDrawRectangle(Image *dst, int posX, int posY, int width, int height,
                                   Color color);       // Draw RLRectangle within an image
-    RLAPI void ImageDrawRLRectangleV(Image *dst, Vector2 position, Vector2 size,
+    RLAPI void ImageDrawRectangleV(Image *dst, Vector2 position, Vector2 size,
                                    Color color);                 // Draw RLRectangle within an image (Vector version)
-    RLAPI void ImageDrawRLRectangleRec(Image *dst, RLRectangle rec,
+    RLAPI void ImageDrawRectangleRec(Image *dst, RLRectangle rec,
                                      Color color);                                // Draw RLRectangle within an image
-    RLAPI void ImageDrawRLRectangleLines(Image *dst, RLRectangle rec, int thick,
+    RLAPI void ImageDrawRectangleLines(Image *dst, RLRectangle rec, int thick,
                                        Color color);                   // Draw RLRectangle lines within an image
     RLAPI void ImageDraw(Image *dst, Image src, RLRectangle srcRec, RLRectangle dstRec,
                          Color tint);             // Draw a source image within a destination image (tint applied to source)
