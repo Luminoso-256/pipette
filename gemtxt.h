@@ -18,6 +18,67 @@ namespace gemtext{
         std::string metadata;
     };
 
+    std::vector<GemLine> attributionTextGen(){
+        std::vector<GemLine> gemlines;
+        gemlines.push_back(
+                GemLine{
+                        "waiting for browse activity", 0, ""
+                }
+        );
+        gemlines.push_back(
+                GemLine{
+                        "(ENTER to navigate, Scrollwheel to scroll, Up/Down arrow keys to zoom)", 0, ""
+                }
+        );
+        for (int i=0; i<10; i++){
+            gemlines.push_back(
+                    GemLine{
+                            "", 0, ""
+                    }
+            );
+        }
+        gemlines.push_back(
+                GemLine{
+                        "------------------------------------", 0, ""
+                }
+        );
+        gemlines.push_back(
+                GemLine{
+                        "Pipette is (C) Luminoso 2021 / All Rights Reserved", 0, ""
+                }
+        );
+        gemlines.push_back(
+                GemLine{
+                        "Pipette uses the kissnet library, which is under the MIT license", 0, ""
+                }
+        );
+        gemlines.push_back(
+                GemLine{
+                        "(https://github.com/Ybalrid/kissnet)", 6, ""
+                }
+        );
+        gemlines.push_back(
+                GemLine{
+                        "Pipette uses the Raylib library, which is under the Zlib license", 0, ""
+                }
+        );
+        gemlines.push_back(
+                GemLine{
+                        "(https://github.com/raysan5/raylib)", 6, ""
+                }
+        );
+        gemlines.push_back(
+                GemLine{
+                        "Pipette uses the Cascadia Code font, which is under the OFL1.1 license", 0, ""
+                }
+        );
+        gemlines.push_back(
+                GemLine{
+                        "(https://github.com/microsoft/cascadia-code)", 6, ""
+                }
+        );
+        return gemlines;
+    }
 
     std::vector<GemLine> parse(std::string input,bool ignoreformatdirectives){
         std::vector<std::string> lines = util::split(input,std::string("\n"));

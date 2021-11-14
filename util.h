@@ -7,6 +7,8 @@
  * */
 #ifndef PIPETTE_UTIL_H
 #define PIPETTE_UTIL_H
+
+
 #include <vector>
 namespace util{
     std::vector<std::string> split (std::string s, std::string delimiter) {
