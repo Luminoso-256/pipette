@@ -167,7 +167,7 @@ void browse(std::vector<GemLine> *result,std::string url,int *status,int *conten
     //abuse the C++ spec requiring vecs being stored contigously to convert
     //god i hate all the casts in this mess.
     tcpsocket.send(&brequest[0],brequest.size());
-    while(tcpsocket.bytes_available() <= 9){}
+    while(tcpsocket.bytes_available() < 9){}
     std::cout << "bytes available to read : " << tcpsocket.bytes_available() << '\n';
     //== Recieve
     kn::buffer<4096> static_buffer;
@@ -182,6 +182,7 @@ void browse(std::vector<GemLine> *result,std::string url,int *status,int *conten
     for (int i = 9; i<data_size; i++){
         res += (char)static_buffer[i];
     }
+    bool error = false;
     switch (contenttype){
         case 0x0:
             result->clear();
@@ -195,17 +196,21 @@ void browse(std::vector<GemLine> *result,std::string url,int *status,int *conten
             result->clear();
             result->push_back(
                     GemLine{
-                        "0x22 Resource Not Found",0,""
+                        "0x22 Resource Not Found",1,""
                     }
                     );
+            error = true;
             break;
         default:
             result->clear();
             *result = gemParse(res,true);
             break;
     }
-
-    *status = 0;
+    if (error){
+        *status = 3;
+    } else {
+        *status = 0;
+    }
 }
 
 int main(void) {
@@ -252,7 +257,12 @@ int main(void) {
         }
 
         if (IsKeyPressed(KEY_LEFT_BRACKET)){debug = !debug;}
-
+        if (IsKeyPressed(KEY_RIGHT_BRACKET)){
+            status += 1;
+            if (status > 3){
+                status = 0;
+            }
+        }
         framesCounter++;
 
         //draw
@@ -326,6 +336,7 @@ int main(void) {
                     if (touching && IsMouseButtonDown(MouseButton::MOUSE_LEFT_BUTTON)){
                         std::string clean = line.metadata.replace(line.metadata.find("piper://"), sizeof("piper://") - 1, "");
                         std::cout << clean << std::endl;
+                         strcpy(target_url,line.metadata.c_str());
                         status = 1;
                         std::thread thread(browse,&gemlines,clean,&status,&contentstatus);
                         thread.detach();
