@@ -125,11 +125,11 @@ std::vector<GemLine> gemParse(std::string input,bool ignoreformatdirectives){
     return gemlines;
 }
 
-void browse(std::vector<GemLine> *result,char *url,int *status,int *contentstatus){
-
+void browse(std::vector<GemLine> *result,std::string url,int *status,int *contentstatus){
+    std::cout << "Navigating to url " << url << "\n";
     /* set up key strings */
 
-    std::vector<std::string> parts = split(std::string(url),"/");
+    std::vector<std::string> parts = split(url,"/");
     std::string host = "";
     if (parts[0].find(":") != std::string::npos){
         host = parts[0];
@@ -222,7 +222,7 @@ int main(void) {
 
 
    // int rendermode = 1;
-    std::vector<GemLine> gemlines(1,GemLine{"waiting for browse activity\n\n\n\n--------------------\nPipette is (C) Luminoso 2021 All Rights Reserved\nPipette uses the kissnet library, which is under the MIT license\n (https://github.com/Ybalrid/kissnet)\nPipette uses the Raylib library, which is under the Zlib license\n (https://github.com/raysan5/raylib)",0,""});
+    std::vector<GemLine> gemlines(1,GemLine{"waiting for browse activity\n\n\n\n--------------------\nPipette is (C) Luminoso 2021 All Rights Reserved\nPipette uses the kissnet library, which is under the MIT license\n (https://github.com/Ybalrid/kissnet)\nPipette uses the Raylib library, which is under the Zlib license\n (https://github.com/raysan5/raylib)\nPipette uses Cascadia Code, which is under the OFL1.1\n (https://github.com/microsoft/cascadia-code)",0,""});
 
     SetTargetFPS(30);
 
@@ -247,7 +247,7 @@ int main(void) {
         }
         if (IsKeyPressed(KEY_ENTER) && status == 0){
             status = 1;
-           std::thread thread(browse,&gemlines,target_url,&status,&contentstatus);
+           std::thread thread(browse,&gemlines,std::string(target_url),&status,&contentstatus);
            thread.detach();
         }
 
@@ -307,10 +307,31 @@ int main(void) {
                     y += fontsize+5;
                     break;
                 case 7:
-                    DrawTextEx(font,line.content.c_str(), Vector2{5, (float)y}, fontsize,2, SKYBLUE);
+                    float x1 = 5;
+                    float y1 = y;
+                    float x2 = 5+(MeasureText(line.content.c_str(),fontsize)*1.5);
+                    float y2 = y+fontsize+3;
+                    Vector2 mousePos = GetMousePosition();
+                    bool touching = (mousePos.x > x1 && mousePos.x < x2 && mousePos.y > y1 && mousePos.y < y2);
                     if (debug){
+                        if (touching) {
+                            DrawRectangle(5, y, MeasureText(line.content.c_str(), fontsize) * 1.5, fontsize + 3,
+                                          GREEN);
+                        } else {
+                            DrawRectangle(5, y, MeasureText(line.content.c_str(), fontsize) * 1.5, fontsize + 3,
+                                          YELLOW);
+                        }
                         DrawTextEx(font,("[Dbg] "+line.metadata).c_str(), Vector2{5, (float)y-10}, 10,2, PURPLE);
                     }
+                    if (touching && IsMouseButtonDown(MouseButton::MOUSE_LEFT_BUTTON)){
+                        std::string clean = line.metadata.replace(line.metadata.find("piper://"), sizeof("piper://") - 1, "");
+                        std::cout << clean << std::endl;
+                        status = 1;
+                        std::thread thread(browse,&gemlines,clean,&status,&contentstatus);
+                        thread.detach();
+                    }
+                    DrawTextEx(font,line.content.c_str(), Vector2{5, (float)y}, fontsize,2, SKYBLUE);
+                    y += fontsize+5;
             }
         }
         if (debug) {
