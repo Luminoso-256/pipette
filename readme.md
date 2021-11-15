@@ -24,7 +24,7 @@ elegant solution, I simply resorted to #undef-ing things, and renaming some symb
 
 ## Building
 
-The project uses cmake as it's build system. Generate cmake build files for your preffered compiler, and then compile!
+The project uses cmake as it's build system. Generate cmake build files for your preferred compiler, and then compile!
 
 note that the project is intended to use the Cascadia Code typeface (as is noted in the attribution page in the code). This is expected as a `font.ttf` file next to the executable
 

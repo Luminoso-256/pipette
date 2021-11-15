@@ -28,7 +28,7 @@ namespace kn = kissnet;
 namespace gm = gemtext;
 using namespace std::chrono_literals;
 
-#define VERSION "21D318C-DEV"
+#define VERSION "21D319-DEV"
 #define SCREEN_WIDTH (800)
 #define SCREEN_HEIGHT (450)
 #define WINDOW_TITLE "Pipette - the tiny piper browser"
@@ -178,6 +178,12 @@ void browse(std::vector<gm::GemLine> *result, std::string url, int *status, int 
                 std::ofstream file(path);
                 file << res;
                 file.close();
+            }
+                break;
+            case 0x20: {
+                *status = 1;
+                std::thread thread(browse, result, res, status, contentstatus);
+                thread.detach();
             }
                 break;
             case 0x22:
