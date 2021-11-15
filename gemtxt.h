@@ -58,7 +58,7 @@ namespace gemtext{
         std::vector<GemLine> gemlines;
         gemlines.push_back(
                 GemLine{
-                        "Pipette is (C) Luminoso 2021 / All Rights Reserved", 0, ""
+                        "Pipette is (C) Luminoso 2021 / MIT License", 0, ""
                 }
         );
         gemlines.push_back(
