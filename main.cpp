@@ -3,7 +3,7 @@
  * main.cpp
  * created 11-13-21
  -------------------
- (C) Luminoso 2021/All Rights Reserved
+ (C) Luminoso 2021/MIT License
  * */
 #include <iostream>
 #include "include/kissnet/kissnet.hpp"
@@ -28,7 +28,7 @@ namespace kn = kissnet;
 namespace gm = gemtext;
 using namespace std::chrono_literals;
 
-#define VERSION "21D318B-DEV"
+#define VERSION "21D318C-DEV"
 #define SCREEN_WIDTH (800)
 #define SCREEN_HEIGHT (450)
 #define WINDOW_TITLE "Pipette - the tiny piper browser"
@@ -36,7 +36,6 @@ using namespace std::chrono_literals;
 
 
 void browse(std::vector<gm::GemLine> *result, std::string url, int *status, int *contentstatus) {
-    std::cout << "Navigating to url " << url << "\n";
     /* set up key strings */
 
     std::vector<std::string> parts = util::split(url, "/");
@@ -50,6 +49,32 @@ void browse(std::vector<gm::GemLine> *result, std::string url, int *status, int 
     parts.erase(parts.begin());
     //pull together the URI
     std::string uri = "/" + util::join(parts, '/');
+    std::cout << host << " path " << uri << std::endl;
+
+    //== Special case: Pipette URLs
+    if (host == "$pipette:60"){
+        if (uri == "/attribution"){
+            *status = 0;
+            result->clear();
+            *result = gm::attributionTextGen();
+            return;
+        } else if (uri == "/about"){
+            *status = 0;
+            result->clear();
+            result->push_back(
+                    gm::GemLine{
+                            "Pipette " +std::string(VERSION), 0,
+                            ""
+                    }
+            );
+            return;
+        } else if (uri == "/home"){
+            *status = 0;
+            result->clear();
+            *result = gm::introTextGen();
+            return;
+        }
+    }
 
     /* socket time! */
 
@@ -209,7 +234,7 @@ int main(void) {
     Font font = LoadFontEx("font.ttf", 32, 0, 250);
 
     // int rendermode = 1;
-    std::vector<gm::GemLine> gemlines = gm::attributionTextGen();
+    std::vector<gm::GemLine> gemlines = gm::introTextGen();
 
     SetTargetFPS(60);
 
@@ -291,6 +316,9 @@ int main(void) {
             bool render = true;
             if (y < 25) {
                 render = false;
+            }
+            if (debug && render){
+                DrawTextEx(font, (std::to_string(line.rendertype)+" y:"+std::to_string(y)).c_str(), Vector2{(float)GetScreenWidth()-80, (float) y}, fontsize, 2, PURPLE);
             }
             switch (line.rendertype) {
                 case 0:
@@ -376,7 +404,7 @@ int main(void) {
         }
         if (debug) {
             std::string dbg =
-                    "[Debug] ContentType: " + std::to_string(contentstatus) + " FPS: " + std::to_string(GetFPS()) +
+                    "ContentType: " + std::to_string(contentstatus) + " FPS: " + std::to_string(GetFPS()) +
                     " (of target 60) URLBuffer: " + std::to_string(letterCount) + "(of max 64) / Pipette " + VERSION;
             DrawTextEx(font, dbg.c_str(), Vector2{3, (float)GetScreenHeight() - 20}, 12, 2, PURPLE);
         }

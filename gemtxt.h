@@ -3,7 +3,7 @@
  * gemtxt.h
  * created 11-14-21
  -------------------
- (C) Luminoso 2021/All Rights Reserved
+ (C) Luminoso 2021/MIT License
  * */
 
 #ifndef PIPETTE_GEMTXT_H
@@ -17,8 +17,7 @@ namespace gemtext{
         int rendertype; //0 = plain, 1 = Heading, 2 = Semiheading, 3 = SemiSemi heading, 4 = Monospace, 5 = List, 6 = Quote, 7 = Link
         std::string metadata;
     };
-
-    std::vector<GemLine> attributionTextGen(){
+    std::vector<GemLine> introTextGen(){
         std::vector<GemLine> gemlines;
         gemlines.push_back(
                 GemLine{
@@ -27,10 +26,10 @@ namespace gemtext{
         );
         gemlines.push_back(
                 GemLine{
-                        "(ENTER to navigate, Scrollwheel to scroll, Up/Down arrow keys to zoom)", 0, ""
+                        "(ENTER to navigate, mousewheel to scroll, Up/Down arrow keys to zoom)", 0, ""
                 }
         );
-        for (int i=0; i<10; i++){
+        for (int i=0; i<14; i++){
             gemlines.push_back(
                     GemLine{
                             "", 0, ""
@@ -39,9 +38,24 @@ namespace gemtext{
         }
         gemlines.push_back(
                 GemLine{
-                        "------------------------------------", 0, ""
+                        "-------------------------------", 0, ""
                 }
         );
+        gemlines.push_back(
+                GemLine{
+                        "attribution", 7, "piper://$pipette/attribution"
+                }
+        );
+        gemlines.push_back(
+                GemLine{
+                        "about", 7, "piper://$pipette/about"
+                }
+        );
+        return gemlines;
+    }
+
+    std::vector<GemLine> attributionTextGen(){
+        std::vector<GemLine> gemlines;
         gemlines.push_back(
                 GemLine{
                         "Pipette is (C) Luminoso 2021 / All Rights Reserved", 0, ""

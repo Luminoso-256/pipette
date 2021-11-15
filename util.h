@@ -3,7 +3,7 @@
  * util.h
  * created 11-14-21
  -------------------
- (C) Luminoso 2021/All Rights Reserved
+ (C) Luminoso 2021/MIT License
  * */
 #ifndef PIPETTE_UTIL_H
 #define PIPETTE_UTIL_H
